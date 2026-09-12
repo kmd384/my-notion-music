@@ -1,0 +1,509 @@
+<html>
+<head>
+<meta charset="utf-8">
+<link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.3.1/css/all.css'>
+<style>
+*:focus { outline: none; }
+
+body {
+  font-family: Helvetica, Arial;
+  margin: 0;
+  background-color: #fff;
+}
+
+#app-cover {
+  position: fixed;
+  top: 45%;
+  right: 0;
+  left: 0;
+  width: 430px;
+  height: 100px;
+  margin: -4px auto;
+}
+
+#bg-artwork {
+  position: fixed;
+  top: -30px;
+  right: -30px;
+  bottom: -30px;
+  left: -30px;
+  background-color: #fff;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: 50%;
+  filter: blur(40px);
+  -webkit-filter: blur(40px);
+  z-index: 1;
+}
+
+#bg-layer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background-color: #fff;
+  opacity: 0.51;
+  z-index: 2;
+}
+
+#player { position: relative; height: 100%; z-index: 3; }
+
+#player-track {
+  position: absolute;
+  top: 0;
+  right: 15px;
+  left: 15px;
+  padding: 13px 22px 10px 184px;
+  background-color: #fff8e7;
+  border-radius: 15px 15px 0 0;
+  transition: 0.3s ease top;
+  z-index: 1;
+}
+
+#player-track.active { top: -92px; }
+
+#album-name { color: #54576f; font-size: 17px; font-weight: bold; }
+#track-name { color: #acaebd; font-size: 13px; margin: 2px 0 13px 0; }
+
+#track-time { height: 12px; margin-bottom: 3px; overflow: hidden; }
+#current-time { float: left; }
+#track-length { float: right; }
+
+#current-time, #track-length {
+  color: transparent;
+  font-size: 11px;
+  background-color: #ffe8ee;
+  border-radius: 10px;
+  transition: 0.3s ease all;
+}
+
+#track-time.active #current-time,
+#track-time.active #track-length {
+  color: #cfb997;
+  background-color: transparent;
+}
+
+#s-area, #seek-bar { position: relative; height: 4px; border-radius: 4px; }
+#s-area { background-color: #E6E6E6; cursor: pointer; }
+
+#ins-time {
+  position: absolute;
+  top: -29px;
+  color: #fff;
+  font-size: 12px;
+  white-space: pre;
+  padding: 5px 6px;
+  border-radius: 4px;
+  display: none;
+}
+
+#s-hover { position: absolute; top: 0; bottom: 0; left: 0; opacity: 0.2; z-index: 2; }
+#ins-time, #s-hover { background-color: #3b3d50; }
+
+#seek-bar {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 0;
+  background-color: #cfb997;
+  transition: 0.2s ease width;
+  z-index: 1;
+}
+
+#player-content {
+  position: relative;
+  height: 100%;
+  background-color: #fff;
+  box-shadow: 0 30px 30px #E6E6E6;
+  border-radius: 10px;
+  z-index: 2;
+}
+
+#album-art {
+  position: absolute;
+  top: -40px;
+  width: 115px;
+  height: 115px;
+  margin-left: 40px;
+  transform: rotateZ(0);
+  transition: 0.3s ease all;
+  box-shadow: 0 0 0 10px #fff;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+#album-art.active {
+  top: -60px;
+  box-shadow: 0 0 0 4px #fff7f7, 0 30px 50px -15px #afb7c1;
+}
+
+#album-art:before {
+  content: "";
+  position: absolute;
+  top: 50%; right: 0; left: 0;
+  width: 20px; height: 20px;
+  margin: -10px auto 0 auto;
+  background-color: #d6dee7;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #fff;
+  z-index: 2;
+}
+
+#album-art img {
+  display: block;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  z-index: -1;
+}
+
+#album-art img.active { opacity: 1; z-index: 1; }
+
+#album-art.active img.active {
+  z-index: 1;
+  animation: rotateAlbumArt 3s linear 0s infinite forwards;
+}
+
+@keyframes rotateAlbumArt {
+  0% { transform: rotateZ(0); }
+  100% { transform: rotateZ(360deg); }
+}
+
+#buffer-box {
+  position: absolute;
+  top: 50%; right: 0; left: 0;
+  height: 13px;
+  color: #1f1f1f;
+  font-size: 13px;
+  font-family: Helvetica;
+  text-align: center;
+  font-weight: bold;
+  line-height: 1;
+  padding: 6px;
+  margin: -12px auto 0 auto;
+  background-color: rgba(255, 255, 255, 0.19);
+  opacity: 0;
+  z-index: 2;
+}
+
+#album-art img, #buffer-box { transition: 0.1s linear all; }
+#album-art.buffering img { opacity: 0.25; }
+#album-art.buffering img.active { opacity: 0.8; filter: blur(2px); -webkit-filter: blur(2px); }
+#album-art.buffering #buffer-box { opacity: 1; }
+
+#player-controls {
+  width: 250px;
+  height: 100%;
+  margin: 0 5px 0 141px;
+  float: right;
+  overflow: hidden;
+}
+
+.control { width: 33.333%; float: left; padding: 12px 0; }
+
+.button {
+  width: 26px; height: 26px;
+  padding: 25px;
+  background-color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button i { display: block; color: #d6dee7; font-size: 26px; text-align: center; line-height: 1; }
+.button, .button i { transition: 0.2s ease all; }
+.button:hover { background-color: #d6d6de; }
+.button:hover i { color: #fff; }
+.button.disabled { pointer-events: none; opacity: 0.4; }
+
+/* 유튜브 영상 프레임. SHOW_VIDEO 설정에 따라 위치가 바뀝니다. */
+#yt-stage {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: 200px;
+  height: 113px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  z-index: 4;
+}
+
+#yt-stage.hidden {
+  right: auto;
+  bottom: auto;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  box-shadow: none;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div id="yt-stage"><div id="yt-player"></div></div>
+
+<div id="app-cover">
+  <div id="bg-artwork"></div>
+  <div id="bg-layer"></div>
+  <div id="player">
+    <div id="player-track">
+      <div id="album-name"></div>
+      <div id="track-name"></div>
+      <div id="track-time">
+        <div id="current-time"></div>
+        <div id="track-length"></div>
+      </div>
+      <div id="s-area">
+        <div id="ins-time"></div>
+        <div id="s-hover"></div>
+        <div id="seek-bar"></div>
+      </div>
+    </div>
+    <div id="player-content">
+      <div id="album-art">
+        <div id="buffer-box">Buffering ...</div>
+      </div>
+      <div id="player-controls">
+        <div class="control">
+          <div class="button disabled" id="play-previous"><i class="fas fa-backward"></i></div>
+        </div>
+        <div class="control">
+          <div class="button disabled" id="play-pause-button"><i class="fas fa-play"></i></div>
+        </div>
+        <div class="control">
+          <div class="button disabled" id="play-next"><i class="fas fa-forward"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script>
+/* ============================================================
+   여기만 고치면 됩니다
+   ============================================================ */
+
+// 유튜브 영상 화면을 오른쪽 아래에 작게 보여줄지 여부.
+// false로 두면 소리만 나오지만, 유튜브 약관상 플레이어는 보이는 게 안전합니다.
+var SHOW_VIDEO = true;
+
+var tracks = [
+  {
+    album: "Graceful Ghost",
+    artist: "W.Bolcom",
+    url:   "https://www.youtube.com/watch?v=xxxxxxxxxxx",
+    art:   "https://i.imgur.com/d0jJzgn.png"
+  },
+  {
+    album: "WHITE BEYOND",
+    artist: "岩崎太整",
+    url:   "https://youtu.be/xxxxxxxxxxx",
+    art:   "https://i.imgur.com/d0jJzgn.png"
+  }
+];
+
+/* ============================================================
+   아래는 건드리지 않아도 됩니다
+   ============================================================ */
+
+var player = null,
+    ytReady = false,
+    currIndex = 0,
+    tickTimer = null,
+    seekT = 0,
+    seekLoc = 0;
+
+// 유튜브 주소에서 영상 ID만 뽑아냅니다. (watch, youtu.be, embed, shorts 지원)
+function getVideoId(url) {
+  var m = String(url).match(
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+  );
+  return m ? m[1] : null;
+}
+
+var $playerTrack = $("#player-track"),
+    $bgArtwork = $("#bg-artwork"),
+    $albumName = $("#album-name"),
+    $trackName = $("#track-name"),
+    $albumArt = $("#album-art"),
+    $sArea = $("#s-area"),
+    $seekBar = $("#seek-bar"),
+    $trackTime = $("#track-time"),
+    $insTime = $("#ins-time"),
+    $sHover = $("#s-hover"),
+    $playPause = $("#play-pause-button"),
+    $icon = $playPause.find("i"),
+    $progress = $("#current-time"),
+    $length = $("#track-length"),
+    $buttons = $(".button");
+
+// 앨범아트 <img>를 트랙 개수만큼 자동으로 만들어 줍니다.
+$.each(tracks, function (idx, t) {
+  $("<img>").attr("src", t.art).attr("id", "art-" + idx).prependTo($albumArt);
+});
+
+if (!SHOW_VIDEO) $("#yt-stage").addClass("hidden");
+
+function fmt(sec) {
+  if (isNaN(sec) || sec < 0) return "00:00";
+  var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+}
+
+function paintTrack(idx) {
+  var t = tracks[idx];
+  $albumName.text(t.album);
+  $trackName.text(t.artist);
+  $albumArt.find("img.active").removeClass("active");
+  $("#art-" + idx).addClass("active");
+  $bgArtwork.css({ "background-image": "url(" + t.art + ")" });
+
+  $seekBar.width(0);
+  $trackTime.removeClass("active");
+  $progress.text("00:00");
+  $length.text("00:00");
+}
+
+function startTicking() {
+  clearInterval(tickTimer);
+  tickTimer = setInterval(tick, 250);
+}
+
+function tick() {
+  if (!player || !player.getDuration) return;
+
+  var dur = player.getDuration() || 0,
+      cur = player.getCurrentTime() || 0;
+
+  if (dur > 0) {
+    $trackTime.addClass("active");
+    $progress.text(fmt(cur));
+    $length.text(fmt(dur));
+    $seekBar.width((cur / dur) * 100 + "%");
+  }
+}
+
+function loadTrack(idx, autoplay) {
+  var id = getVideoId(tracks[idx].url);
+
+  if (!id) {
+    $albumName.text("주소를 확인해 주세요");
+    $trackName.text("유튜브 링크 형식이 아닙니다");
+    return;
+  }
+
+  currIndex = idx;
+  paintTrack(idx);
+
+  if (autoplay) player.loadVideoById(id);
+  else player.cueVideoById(id);
+}
+
+function playPause() {
+  if (!ytReady) return;
+  var state = player.getPlayerState();
+  if (state === YT.PlayerState.PLAYING) player.pauseVideo();
+  else player.playVideo();
+}
+
+function step(dir) {
+  var next = currIndex + dir;
+  if (next < 0 || next >= tracks.length) return;
+  loadTrack(next, true);
+}
+
+function onPlayingUI() {
+  $playerTrack.addClass("active");
+  $albumArt.addClass("active").removeClass("buffering");
+  $icon.attr("class", "fas fa-pause");
+  startTicking();
+}
+
+function onPausedUI() {
+  $playerTrack.removeClass("active");
+  $albumArt.removeClass("active").removeClass("buffering");
+  $icon.attr("class", "fas fa-play");
+  clearInterval(tickTimer);
+}
+
+// 시크바 조작
+$sArea.on("mousemove", function (e) {
+  if (!ytReady || !player.getDuration) return;
+  var dur = player.getDuration() || 0;
+  if (!dur) return;
+
+  var pos = $sArea.offset();
+  seekT = e.clientX - pos.left;
+  seekLoc = dur * (seekT / $sArea.outerWidth());
+
+  $sHover.width(seekT);
+  $insTime.text(fmt(seekLoc)).css({ left: seekT, "margin-left": "-21px" }).fadeIn(0);
+});
+
+$sArea.on("mouseout", function () {
+  $sHover.width(0);
+  $insTime.text("00:00").css({ left: "0px", "margin-left": "0px" }).fadeOut(0);
+});
+
+$sArea.on("click", function () {
+  if (!ytReady) return;
+  player.seekTo(seekLoc, true);
+  $seekBar.width(seekT);
+  $sHover.width(0);
+  $insTime.fadeOut(0);
+});
+
+$playPause.on("click", playPause);
+$("#play-previous").on("click", function () { step(-1); });
+$("#play-next").on("click", function () { step(1); });
+
+// 유튜브 API 불러오기
+var tag = document.createElement("script");
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {
+  var first = getVideoId(tracks[0].url);
+
+  player = new YT.Player("yt-player", {
+    width: "200",
+    height: "113",
+    videoId: first || "",
+    playerVars: {
+      controls: 0,
+      disablekb: 1,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0
+    },
+    events: {
+      onReady: function () {
+        ytReady = true;
+        $buttons.removeClass("disabled");
+        paintTrack(0);
+      },
+      onStateChange: function (e) {
+        if (e.data === YT.PlayerState.PLAYING) onPlayingUI();
+        else if (e.data === YT.PlayerState.PAUSED) onPausedUI();
+        else if (e.data === YT.PlayerState.BUFFERING) $albumArt.addClass("buffering");
+        else if (e.data === YT.PlayerState.ENDED) {
+          onPausedUI();
+          $seekBar.width(0);
+          $progress.text("00:00");
+          if (currIndex < tracks.length - 1) step(1);
+        }
+      },
+      onError: function () {
+        $albumName.text("재생할 수 없는 영상입니다");
+        $trackName.text("퍼가기가 막혔거나 삭제된 영상이에요");
+        onPausedUI();
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
