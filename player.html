@@ -330,8 +330,14 @@ function listFolder(path, extensions) {
           return extensions.some(function (ext) { return name.endsWith(ext); });
         })
         .sort(function (a, b) { return a.name.localeCompare(b.name); })
-        .map(function (i) { return { name: i.name, url: i.download_url }; });
-    });
+        .map(function (i) {
+          return {
+            name: i.name,
+            url: "https://raw.githubusercontent.com/" + REPO +
+                 "/refs/heads/" + BRANCH + "/" + path + "/" +
+                 encodeURIComponent(i.name)
+          };
+        });
 }
 
 function prettify(filename) {
